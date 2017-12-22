@@ -1,26 +1,12 @@
 #include "Car.h"
 #include "msp430usart.h"
 
-interface Car {
-    command void init();
-    /*command error_t Angle(uint8_t data1, uint8_t data2);
-    command error_t Angle_Sec(uint8_t data1, uint8_t data2);
-    command error_t Angle_Third(uint8_t data1, uint8_t data2);
-    command error_t Forward(uint8_t data1, uint8_t data2);
-    command error_t Back(uint8_t data1, uint8_t data2);
-    command error_t Left(uint8_t data1, uint8_t data2);
-    command error_t Right(uint8_t data1, uint8_t data2);
-    command error_t Pause();*/
-    command error_t commandDeal(uint8_t type, uint8_t data1, uint8_t data2);
-    event void readDone(error_t state, uint8_t data1, uint8_t data2);
-}
-
-module CarP () {
+module CarP {
     provides interface Car;
     uses {
         interface HplMsp430Usart as Usart;
         interface HplMsp430UsartInterrupts as UsartInt;
-        interface HplMsp430UsartGeneralIO as UsartGIO;
+        interface HplMsp430GeneralIO as UsartGIO;
         interface Resource;
     }
 }
@@ -29,7 +15,7 @@ implementation {
     my_msg_t msgQueue[MSG_LENGTH];
     bool busy = FALSE, full = FALSE;
     uint8_t msgIn, msgOut;
-    uint8_t msgInit[8] = {0x01, 0x02, 0, 0, 0, 0xFF, 0xFF, 0};
+    uint8_t msgInit[] = {0x01, 0x02, 0, 0, 0, 0xFF, 0xFF, 0};
 
     msp430_uart_union_config_t config1 = { 
         {
@@ -54,6 +40,11 @@ implementation {
     };
 
 
+
+    async event void UsartInt.rxDone(uint8_t data){}
+    
+    async event void UsartInt.txDone(){}
+
     task void writeMsgToCar () {
         atomic{
             if (msgIn == msgOut && !full) {
@@ -67,27 +58,27 @@ implementation {
         }
     }
 
-    event void granted () {
+    event void Resource.granted () {
         my_msg_t *currentMsg;
         currentMsg = &msgQueue[msgOut];
         call Usart.setModeUart(&config1);
         call Usart.enableUart();
         U0CTL &= ~SYNC;
-        while(!Usart.isTxEmpty()){}
+        while(!call Usart.isTxEmpty()){}
         call Usart.tx(currentMsg->data[0]);
-        while(!Usart.isTxEmpty()){}
+        while(!call Usart.isTxEmpty()){}
         call Usart.tx(currentMsg->data[1]);
-        while(!Usart.isTxEmpty()){}
+        while(!call Usart.isTxEmpty()){}
         call Usart.tx(currentMsg->data[2]);
-        while(!Usart.isTxEmpty()){}
+        while(!call Usart.isTxEmpty()){}
         call Usart.tx(currentMsg->data[3]);
-        while(!Usart.isTxEmpty()){}
+        while(!call Usart.isTxEmpty()){}
         call Usart.tx(currentMsg->data[4]);
-        while(!Usart.isTxEmpty()){}
+        while(!call Usart.isTxEmpty()){}
         call Usart.tx(currentMsg->data[5]);
-        while(!Usart.isTxEmpty()){}
+        while(!call Usart.isTxEmpty()){}
         call Usart.tx(currentMsg->data[6]);
-        while(!Usart.isTxEmpty()){}
+        while(!call Usart.isTxEmpty()){}
         call Usart.tx(currentMsg->data[7]);
         call Resource.release();
         msgOut ++;
@@ -95,7 +86,7 @@ implementation {
             msgOut = 0;
         }
         full = FALSE;
-        signal Car.readDone(SUCCESS, msg[3], msg[4]);
+        signal Car.readDone(SUCCESS, currentMsg->data[3], currentMsg->data[4]);
         post writeMsgToCar();
     }
 
@@ -108,7 +99,7 @@ implementation {
         }
     }
 
-    command error_t commandDeal(uint8_t type, uint8_t data1, uint8_t data2) {
+    command error_t Car.commandDeal(uint8_t type, uint8_t data1, uint8_t data2) {
         my_msg_t *msgPtr;
         atomic {
             if (!full) {
@@ -132,6 +123,7 @@ implementation {
             return FAIL;
         }
     }
+
     /*
     command error_t Car.Angle (uint8_t data1, uint8_t data2) {
         my_msg_t *msgPtr;

@@ -16,30 +16,28 @@ implementation {
 
     uint8_t type;
 
-    event void Boot.booted () {
-    }
+    event void Boot.booted () {}
 
-    event void AMControl.startDone (error_t err) {
-    }
+    event void AMControl.startDone (error_t err) {}
     
     task void ledControl () {
-        if (type & 1 == 1) {
-            Leds.led0On();
+        if ((type & 1) == 1) {
+            call Leds.led0On();
         }
         else {
-            Leds.led0Off();
+            call Leds.led0Off();
         }
-        if (type & 2 == 1) {
-            Leds.led1On();
-        }
-        else {
-            Leds.led1Off();
-        }
-        if (type & 4 == 1) {
-            Leds.led2On();
+        if ((type & 2) == 1) {
+            call Leds.led1On();
         }
         else {
-            Leds.led2Off();
+            call Leds.led1Off();
+        }
+        if ((type & 4) == 1) {
+            call Leds.led2On();
+        }
+        else {
+            call Leds.led2Off();
         }
     }
 
@@ -50,4 +48,9 @@ implementation {
         call Car.commandDeal(inputData->type, inputData->data1, inputData->data2);
     }
 
+    event void Car.readDone (error_t state, uint8_t data1, uint8_t data2) {}
+    
+    event void AMControl.stopDone (error_t error) {}
+
+    event void AMSend.sendDone (message_t* msg, error_t error) {}
 }
