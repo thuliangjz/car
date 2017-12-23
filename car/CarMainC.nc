@@ -1,4 +1,5 @@
 #include "RadioControl.h"
+#include <Timer.h>
 
 configuration CarMainC {}
 implementation {
@@ -9,6 +10,7 @@ implementation {
     components new AMReceiverC(AM_RADIO_MSG);
     components CarC;
     components RadioControlC as App;
+    components new TimerMilliC() as Timer;
 
     App.Boot -> MainC;
     App.Leds -> LedsC;
@@ -17,5 +19,5 @@ implementation {
     App.AMSend -> AMSenderC;
     App.AMControl -> ActiveMessageC;
     App.Car -> CarC;
-
+    App.Timer -> Timer;
 }
