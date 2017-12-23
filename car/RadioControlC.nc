@@ -25,19 +25,31 @@ implementation {
     }
 
     event void AMControl.startDone (error_t err) {
-        // call Timer.startPeriodic(1000);
+         call Timer.startPeriodic(1000);
     }
     
     event void Timer.fired () {
-        /*
+        uint8_t data1, data2;
+        uint16_t data = 4500;
         call Leds.led0Toggle();
-        call Car.commandDeal((counter / 10) + 2, 1, 244);
-        call Car.commandDeal((counter / 10) + 3, 1, 244);
-        counter += 5;
-        
-        if(counter >= 40)
+        if(counter <= 40)
+            call Car.commandDeal((counter / 10) + 2, 1, 244);
+        else if(counter <= 50) {
+            data1 = data >> 8;
+            data2 = data;
+            call Car.commandDeal(1, data1, data2);
+        }
+        else if(counter <= 60) {
+            data = 500;
+            data1 = data >> 8;
+            data2 = data;
+            call Car.commandDeal(1, data1, data2);
+        }
+        else {
+            call Car.commandDeal(6, 0, 0);
             call Timer.stop();
-        */
+        }
+        counter += 5;
     }
 
 
@@ -58,10 +70,13 @@ implementation {
 
     //02: right 03: left   04: forward   05: backward  
     event message_t* Receive.receive(message_t *msg, void *payload, uint8_t len) {
-        input_msg_t *inputData = (input_msg_t *)payload;
-        type = inputData->type;
+        uint32_t content = *(uint32_t*)payload;
+        uint8_t data1, data2;
+        type = (content >> 16);
+        data1 = (content >> 8);
+        data2 = content;
         post ledControl();
-        call Car.commandDeal(inputData->type, inputData->data1, inputData->data2);
+        call Car.commandDeal(type, data1, data2);
         return msg;
     }
 
