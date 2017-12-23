@@ -1,9 +1,12 @@
-#define QUERY_INTERVAL 200
-#define COUNT_BTN 6
+#include "printf.h"
+
+#define QUERY_INTERVAL 1000
+#define COUNT_BTN 5
 #define CAR_NODE_ID 30
 #define MSG_QUE_LENGTH 12
+#define HANDLE_MID_DELTA 300
 #define STEER_ANGLE_MID 3000
-#define STEER_ANGLE_DELTA 50
+#define STEER_ANGLE_DELTA 100
 #define STEER_ANGLE_MIN 500
 #define STEER_ANGLE_MAX 4500
 module ControllerC {
@@ -19,6 +22,9 @@ module ControllerC {
         interface AMPacket;
         interface AMSend;
         interface SplitControl as AMControl;
+
+        //调试用
+        interface Leds;
     }
 }
 implementation {
@@ -57,6 +63,7 @@ implementation {
 
     event void Boot.booted(){
         call AMControl.start(); 
+        call Button.start();
     }
     event void AMControl.startDone(error_t err){
         call Timer.startPeriodic(QUERY_INTERVAL);
@@ -64,8 +71,10 @@ implementation {
     event void AMControl.stopDone(error_t err){
     }
     event void Timer.fired(){
+
         uint8_t i;
         bool active;
+       
         if(busy)
             return;
         busy = TRUE;
@@ -73,6 +82,7 @@ implementation {
             active = call Button.pinValue(i);
             if(active){
                 btnPressed = i;
+                break;
             }
         }
         call ReaderX.read();
@@ -80,11 +90,13 @@ implementation {
     event void ReaderX.readDone(error_t err, uint16_t xVal){
         handleX = (int16_t) xVal;
         handleX -= 2048;
+        handleX = -handleX;
         call ReaderY.read();
     }
     event void ReaderY.readDone(error_t err,uint16_t yVal){
         handleY = (int16_t) yVal;
         handleY -= 2048;
+        handleY = -handleY;
         //所有数据读取完成
         prepareMsg();
     }
@@ -96,17 +108,14 @@ implementation {
     void prepareMsg(){
         message_t *pMsg = getNextBuffer(), *pMsg1;
         if(!pMsg){
-            /*
-            注意这里没有置busy为TRUE,这意味着队列已满的情况下，
-            Timer触发fired事件时，不会进行数据的获取
-            同时注意在sendMsg中当发送完一个消息时如果检测到msgDroped,
-            则应同时将msgDroped和busy置为TRUE
-            */
+            //注意这里没有置busy为TRUE,这意味着队列已满的情况下，
+            //Timer触发fired事件时，不会进行数据的获取
+            //同时注意在sendMsg中当发送完一个消息时如果检测到msgDroped,
+            //则应同时将msgDroped和busy置为TRUE
             msgDroped = TRUE;
             return;
         }
-            return;
-        if(btnPressed >= 0){
+       if(btnPressed >= 0){
             switch(btnPressed){
                 case 0:
                     steer1Left(pMsg);
@@ -146,6 +155,7 @@ implementation {
         if(tail == head)
             return;
         //发送head指向的message
+        call Leds.led2Toggle();
         call AMSend.send(CAR_NODE_ID,&msgBuffer[head], sizeof(uint32_t));
     }
     event void AMSend.sendDone(message_t *msg, error_t err){
@@ -192,7 +202,7 @@ implementation {
         angle1 -= STEER_ANGLE_DELTA;
         angle1 = angle1 <= STEER_ANGLE_MIN ? STEER_ANGLE_MIN : angle1;
         content = angle1;
-        content |= 0x100;
+        content |= 0x10000;
         *payload = content;
     }
     //btn1
@@ -202,7 +212,7 @@ implementation {
         angle1 += STEER_ANGLE_DELTA;
         angle1 = angle1 >= STEER_ANGLE_MAX ? STEER_ANGLE_MAX : angle1;
         content = angle1;
-        content |= 0x100;
+        content |= 0x10000;
         *payload = content;
     }
     //btn2
@@ -212,7 +222,7 @@ implementation {
         angle2 -= STEER_ANGLE_DELTA;
         angle2 = angle2 <= STEER_ANGLE_MIN ? STEER_ANGLE_MIN : angle2;
         content = angle2;
-        content |= 0x700;
+        content |= 0x70000;
         *payload = content;
     }
     //btn3
@@ -222,7 +232,7 @@ implementation {
         angle2 -= STEER_ANGLE_DELTA;
         angle2 = angle2 <= STEER_ANGLE_MIN ? STEER_ANGLE_MIN : angle2;
         content = angle2;
-        content |= 0x700;
+        content |= 0x70000;
         *payload = content;
     }
     //btn4
@@ -231,9 +241,9 @@ implementation {
         angle1 = STEER_ANGLE_MID;
         angle2 = STEER_ANGLE_MID;
         payload = (uint32_t*)(call Packet.getPayload(pMsg1, sizeof(uint32_t)));
-        *payload = (uint32_t)angle1 | 0x100;
+        *payload = (uint32_t)angle1 | 0x10000;
         payload = (uint32_t*)(call Packet.getPayload(pMsg2, sizeof(uint32_t)));
-        *payload = (uint32_t)angle2 | 0x700;
+        *payload = (uint32_t)angle2 | 0x70000;
     }
     //手柄被按下的逻辑
     /*
@@ -244,22 +254,21 @@ implementation {
     void carMove(message_t* pMsg){
         uint32_t *payload = (uint32_t*)(call Packet.getPayload(pMsg, sizeof(uint32_t)));
         uint32_t content = 0;
-        uint16_t vAbs;
-        if(handleX > delta || handleX < -delta){
+        uint16_t vAbs = 500;
+        if(handleX > HANDLE_MID_DELTA || handleX < -HANDLE_MID_DELTA){
             //只进行转弯, handleX大于零右转否则左转
-            content |= handleX > 0 ? 0x500 : 0x400;
-            vAbs = handleX > 0 ? handleX : -handleX;
+            content |= handleX > 0 ? 0x50000 : 0x40000;
             content |= (uint32_t)vAbs;
         }
-        else if(handleY > delta || handleY < -delta){
+        else if(handleY > HANDLE_MID_DELTA || handleY < -HANDLE_MID_DELTA){
             //沿直线行进
-            content |= handleY > 0 ? 0x200 : 0x300;
-            vAbs = handleY > 0 ? handleY : -handleY;
+            content |= handleY > 0 ? 0x20000 : 0x30000;
+
             content |= (uint32_t)vAbs;
         }
         else{
             //发送停止信息
-            content |= 0x600;            
+            content |= 0x60000;            
         }
         *payload = content;
     }

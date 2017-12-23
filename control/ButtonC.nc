@@ -6,7 +6,6 @@ module ButtonC {
         interface HplMsp430GeneralIO as port2;
         interface HplMsp430GeneralIO as port3;
         interface HplMsp430GeneralIO as port4;
-        interface HplMsp430GeneralIO as port5;
     }
     provides interface Button;
 }
@@ -17,14 +16,12 @@ implementation {
         call port2.clr();
         call port3.clr();
         call port4.clr();
-        call port5.clr();
 
         call port0.makeInput();
         call port1.makeInput();
         call port2.makeInput();
         call port3.makeInput();
         call port4.makeInput();
-        call port5.makeInput();
     }
     command bool Button.pinValue(uint8_t btnId){
         switch(btnId){
@@ -38,8 +35,6 @@ implementation {
                 return !(call port3.get());
             case 4:
                 return !(call port4.get());
-            case 5:
-                return !(call port5.get());
             default :
                 return FALSE;
         }
