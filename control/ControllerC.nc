@@ -1,14 +1,16 @@
 #include "printf.h"
 
-#define QUERY_INTERVAL 1000
+#define QUERY_INTERVAL 200
 #define COUNT_BTN 5
 #define CAR_NODE_ID 30
 #define MSG_QUE_LENGTH 12
-#define HANDLE_MID_DELTA 300
+#define HANDLE_MID_DELTA 500
 #define STEER_ANGLE_MID 3000
-#define STEER_ANGLE_DELTA 100
+#define STEER_ANGLE_DELTA 200
 #define STEER_ANGLE_MIN 500
 #define STEER_ANGLE_MAX 4500
+#define MAX_STOP_INS_COUNT 5
+
 module ControllerC {
     uses {
         //获取输入
@@ -41,7 +43,8 @@ implementation {
     //保存的小车状态
     uint16_t angle1 = STEER_ANGLE_MID, 
         angle2 = STEER_ANGLE_MID;        //记录两个舵机当前角度
-    
+    bool moving = FALSE;   
+    int8_t stopPktCount = 0; 
     task void sendMsg();    //发送队列中的控制信息,如果发现有msgDroped位应该置busy为FALSE
     message_t* getNextBuffer();
     void prepareMsg();      //在获取完所有的数据后决定发送什么类型的控制指令（以及个数）
@@ -229,8 +232,8 @@ implementation {
     void steer2Right(message_t *pMsg){
         uint32_t content = 0;
         uint32_t *payload = (uint32_t*)(call Packet.getPayload(pMsg, sizeof(uint32_t)));
-        angle2 -= STEER_ANGLE_DELTA;
-        angle2 = angle2 <= STEER_ANGLE_MIN ? STEER_ANGLE_MIN : angle2;
+        angle2 += STEER_ANGLE_DELTA;
+        angle2 = angle2 >= STEER_ANGLE_MAX ? STEER_ANGLE_MAX : angle2;
         content = angle2;
         content |= 0x70000;
         *payload = content;
@@ -257,18 +260,33 @@ implementation {
         uint16_t vAbs = 500;
         if(handleX > HANDLE_MID_DELTA || handleX < -HANDLE_MID_DELTA){
             //只进行转弯, handleX大于零右转否则左转
-            content |= handleX > 0 ? 0x50000 : 0x40000;
+            content |= handleX > 0 ? 0x20000 : 0x30000;
             content |= (uint32_t)vAbs;
+
+            moving = TRUE;
         }
         else if(handleY > HANDLE_MID_DELTA || handleY < -HANDLE_MID_DELTA){
             //沿直线行进
-            content |= handleY > 0 ? 0x20000 : 0x30000;
+            content |= handleY > 0 ? 0x40000 : 0x50000;
 
             content |= (uint32_t)vAbs;
+            moving = TRUE;
         }
         else{
-            //发送停止信息
-            content |= 0x60000;            
+            content = 0x60000;
+            if(moving){
+                //停止信息码
+                moving = FALSE;
+                stopPktCount = 0;
+            }
+            else if(!moving && stopPktCount < MAX_STOP_INS_COUNT){
+                //继续发送停止消息
+                ++stopPktCount;
+            }
+            else{
+                //不发送任何消息
+                deallocateOne();
+            }
         }
         *payload = content;
     }
