@@ -123,29 +123,5 @@ implementation {
             return FAIL;
         }
     }
-
-    /*
-    command error_t Car.Angle (uint8_t data1, uint8_t data2) {
-        my_msg_t *msgPtr;
-        atomic{
-            if (!full) {
-                msgPtr = &msgQueue[msgIn];
-                msgPtr->data[2] = 1;
-                msgPtr->data[3] = data1;
-                msgPtr->data[4] = data2;
-                msgIn ++;
-                if (msgIn == MSG_LENGTH) {
-                    msgIn = 0;
-                }
-                if (msgIn == msgOut) {
-                    full = TRUE;
-                }
-                if (!busy) {
-                    post writeMsgToCar();
-                    busy = TRUE;
-                }
-            }
-        }
-    }*/
     
 }
