@@ -39,7 +39,15 @@ implementation {
     task void sendMsg();    //发送队列中的控制信息,如果发现有msgDroped位应该置busy为FALSE
     message_t* getNextBuffer();
     void prepareMsg();      //在获取完所有的数据后决定发送什么类型的控制指令（以及个数）
-   
+    message_t *getNextBuffer();
+    void deallocateOne();
+    void popQue();
+    void steer1Left(message_t *pMsg);
+    void steer1Right(message_t *pMsg);
+    void steer2Left(message_t *pMsg);
+    void steer2Right(message_t *pMsg);
+    void steerReset(message_t* pMsg1, message_t* pMsg2);
+    void carMove(message_t *pMsg);
     /*
     节点每到一定时间点检查button和摇杆的输出的信号，保留所有能读到的信息
     摇杆的控制逻辑：
@@ -53,7 +61,7 @@ implementation {
     event void AMControl.startDone(error_t err){
         call Timer.startPeriodic(QUERY_INTERVAL);
     }
-    event void AMControl.stopDone(){
+    event void AMControl.stopDone(error_t err){
     }
     event void Timer.fired(){
         uint8_t i;
@@ -69,12 +77,12 @@ implementation {
         }
         call ReaderX.read();
     }
-    event void ReaderX.readDone(uint16_t xVal){
+    event void ReaderX.readDone(error_t err, uint16_t xVal){
         handleX = (int16_t) xVal;
         handleX -= 2048;
         call ReaderY.read();
     }
-    event void ReaderY.readDone(uint16_t yVal){
+    event void ReaderY.readDone(error_t err,uint16_t yVal){
         handleY = (int16_t) yVal;
         handleY -= 2048;
         //所有数据读取完成
@@ -120,7 +128,7 @@ implementation {
                         btnPressed = -1;
                         return;
                     }
-                    steerReset(pMsg);
+                    steerReset(pMsg, pMsg1);
                     break;
             }
         }
@@ -138,13 +146,13 @@ implementation {
         if(tail == head)
             return;
         //发送head指向的message
-        AMSend.send(CAR_NODE_ID,&msgBuffer[head], sizeof(uint32_t));
+        call AMSend.send(CAR_NODE_ID,&msgBuffer[head], sizeof(uint32_t));
     }
-    event void AMSend.sendDone(){
+    event void AMSend.sendDone(message_t *msg, error_t err){
         popQue();
         if(msgDroped){
             msgDroped = FALSE;
-            busy = FALSE
+            busy = FALSE;
         }
         post sendMsg();
     }
@@ -218,7 +226,7 @@ implementation {
         *payload = content;
     }
     //btn4
-    void steerReset(message_t pMsg1, message_t pMsg2){
+    void steerReset(message_t* pMsg1, message_t* pMsg2){
         uint32_t *payload;
         angle1 = STEER_ANGLE_MID;
         angle2 = STEER_ANGLE_MID;
@@ -233,8 +241,8 @@ implementation {
     如果x方向有值则不再读y方向的值，
     x方向与y方向都没有值则发送停止命令
     */
-    void carMove(message_t pMsg){
-        uint32_t *payload = (uint32_t*)(call Packet.getPayload(pMsg2, sizeof(uint32_t)));
+    void carMove(message_t* pMsg){
+        uint32_t *payload = (uint32_t*)(call Packet.getPayload(pMsg, sizeof(uint32_t)));
         uint32_t content = 0;
         uint16_t vAbs;
         if(handleX > delta || handleX < -delta){

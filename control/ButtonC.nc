@@ -27,7 +27,6 @@ implementation {
         call port5.makeInput();
     }
     command bool Button.pinValue(uint8_t btnId){
-        bool res;
         switch(btnId){
             case 0:
                 return !(call port0.get());
@@ -41,6 +40,8 @@ implementation {
                 return !(call port4.get());
             case 5:
                 return !(call port5.get());
+            default :
+                return FALSE;
         }
     }
 }

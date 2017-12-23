@@ -12,10 +12,11 @@ implementation {
     ButtonC.port1 -> BtnIO.Port21;
     ButtonC.port2 -> BtnIO.Port61;
     ButtonC.port3 -> BtnIO.Port23;
-    ButtonC.port4 -> BtnIO.port62;
-    ButtonC.port5 -> BtnIO.port26;
+    ButtonC.port4 -> BtnIO.Port62;
+    ButtonC.port5 -> BtnIO.Port26;
     ControllerC.Button -> ButtonC;
-
+    ControllerC.ReaderX -> JoyStickC.ReadX;
+    ControllerC.ReaderY -> JoyStickC.ReadY;
     ControllerC.Boot -> MainC;
     ControllerC.Timer -> Timer;
     ControllerC.Packet -> AMSenderC;

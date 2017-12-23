@@ -5,9 +5,9 @@ configuration JoyStickC {
 implementation{
     components new AdcReadClientC() as ReaderX;
     components new AdcReadClientC() as ReaderY;
-    components JoySticP;
-    ReaderX.AdcConfigure -> JoySticP.ConfigX;
-    ReaderY.AdcConfigure -> JoySticP.ConfigY;
+    components JoyStickP;
+    ReaderX.AdcConfigure -> JoyStickP.ConfigX;
+    ReaderY.AdcConfigure -> JoyStickP.ConfigY;
 
     ReadX = ReaderX.Read;
     ReadY = ReaderY.Read;
