@@ -1,6 +1,3 @@
-#define NEW_PRINTF_SEMANTICS
-#include "printf.h"
-
 #define COMM_PORT 0x63
 configuration ControlAppC {
 

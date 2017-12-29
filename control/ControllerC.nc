@@ -1,5 +1,3 @@
-#include "printf.h"
-
 #define QUERY_INTERVAL 200
 #define COUNT_BTN 5
 #define CAR_NODE_ID 30
